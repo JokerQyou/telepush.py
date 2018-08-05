@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Tele.push</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ajusa/lit@latest/dist/lit.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ajusa/lit@latest/dist/util.css" />
+    <style type="text/css">
+      body * {
+        font-family: Monaco, monospace !important;
+      }
+      .b-tgc {
+        border-color: #54a9eb;
+      }
+      ul {
+        list-style: none;
+      }
+      code {
+        background-color: #eee;
+        padding: .1em .4em;
+      }
+      .bs-bb {
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body class="m0">
+    {% block body %}{% endblock %}
+    <script type="text/javascript">
+      document.body.addEventListener('click', function (e) {
+        if (e.target.classList.contains('clickselect')) {
+          var range = document.createRange();
+          range.selectNode(e.target);
+          window.getSelection().removeAllRanges();
+          window.getSelection().addRange(range);
+        }
+      })
+    </script>
+  </body>
+</html>

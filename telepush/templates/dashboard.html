@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="c">
+  <header class="mb3">
+    <h1 class="tc mb0">Tele.push</h1>
+    <h5 class="tc">Simplest way to push texts to you via Telegram.</h5>
+  </header>
+  <div class="row mt3">
+    <div class="10 col card tc b-tgc">
+      <p>Welcom, {{first_name}}. You <code>key</code> is <code class="clickselect">{{sendkey}}</code>.</p>
+      <p>Please keep it secret. Anyone with this key can send you messages via Telegram.</p>
+      <p>
+        <code>POST</code> or <code>GET</code> <code class="clickselect">{{ config['WEBSITE_URL'] + url_for('send') }}</code> with your <code>key</code> and <code>text</code>.
+      </p>
+    </div>
+  </div>
+  <div class="row mt3">
+    <div class="10 col card b-tgc">
+      <p>Send message</p>
+      <form action="{{ config['WEBSITE_URL'] + url_for('send') }}" class="card">
+        <input type="hidden" name="key" value="{{sendkey}}">
+        <div class="row">
+          <label for="text">Message</label>
+          <textarea name="text" id="text" placeholder="Type here" class="card w-100 bs-bb"></textarea>
+        </div>
+        <div class="row">
+            <button class="btn b-info info" type="submit">Send</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="row mt3 mb3">
+    <div class="10 col card tc b-tgc">
+      <p>Links</p>
+      <p>
+        <a href="#" class="btn bg-error white">Reset your key</a>
+        <a href="#" class="btn bg-info white">Host your own instance</a>
+        <a href="/logout" class="btn bg-info white">Logout</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
