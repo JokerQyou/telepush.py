@@ -1,5 +1,8 @@
 # Telepush.py
 
+------
+[![Build Status](https://travis-ci.com/JokerQyou/telepush.py.svg?branch=master)](https://travis-ci.com/JokerQyou/telepush.py)
+
 An opensource version of the retired [ethbot service][ethbot_github]. Currently under development.
 
 # Setup for development / debugging
