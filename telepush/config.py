@@ -16,6 +16,7 @@ class Config(object):
     TELEGRAM_BOT_WEBHOOK_PATH = '/' + TELEGRAM_BOT_TOKEN.rsplit(':', 1)[-1]
     TELEGRAM_AUTH_SECRET = sha256(bytes(TELEGRAM_BOT_TOKEN, 'utf-8')).digest()
     DATABASE_FILE = os.getenv('DATABASE_FILE')
+    LOG_FILE = os.getenv('LOG_FILE')
     DEBUG = os.getenv('QUART_DEBUG', False)
 
     if DEBUG:
