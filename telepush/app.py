@@ -33,9 +33,6 @@ async def send_message(chat_id, text, reply_to, parsemode):
 
 @app.before_serving
 async def create_db_pool():
-    print(app.config['DATABASE_FILE'])
-    import os
-    print(os.path.exists(os.path.dirname(app.config['DATABASE_FILE'])))
     log(message_type='create_db_pool')
     db.bind(
         provider='sqlite',
@@ -119,9 +116,7 @@ async def webhook():
     '''API endpoing for Telegram webhook.
     Telegram sends update messages to this endpoint.
     '''
-    data = await request.get_json()
-    print(data)
-    update = Update.de_json(data, bot)
+    update = Update.de_json(await request.get_json(), bot)
     if not update:
         return 'No update', 400
 
@@ -132,8 +127,6 @@ async def webhook():
             if user and not user.key:
                 user.set(chat_id=message.chat.id, key=generate_sendkey())
                 return 'Ok'
-            else:
-                return 'Hmmmm', 204
 
     return 'Ok'
 
