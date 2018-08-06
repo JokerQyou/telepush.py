@@ -1,6 +1,5 @@
 # Telepush.py
 
-------
 [![Build Status](https://travis-ci.com/JokerQyou/telepush.py.svg?branch=master)](https://travis-ci.com/JokerQyou/telepush.py)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/7231ab2e159bcbe6af3d/test_coverage)](https://codeclimate.com/github/JokerQyou/telepush.py/test_coverage)
 
