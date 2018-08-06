@@ -1,11 +1,7 @@
 # coding: utf-8
 import asyncio
-from datetime import datetime
-import hmac
-import random
-import string
-import time
 
+import eliot
 from pony.orm import db_session
 from quart import (
     g, Quart, redirect, render_template, request, session, url_for,
@@ -13,45 +9,22 @@ from quart import (
 from telegram import Bot, ParseMode, Update
 
 from .models import db, User
+from .utils import eliot_log, generate_sendkey, log, verify_telegram_auth
+
+eliot.use_asyncio_context()
 
 app = Quart(__name__)
 app.config.from_object('telepush.config.Config')
+eliot.to_file(open(app.config['LOG_FILE'], 'a'))
+
 bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
 bot.set_webhook(
     app.config['WEBSITE_URL'] + app.config['TELEGRAM_BOT_WEBHOOK_PATH'],
 )
 
 
-def verify_telegram_auth(auth_data):
-    '''Verify if auth_data actually comes from Telegram.
-    Ref: https://core.telegram.org/widgets/login#checking-authorization
-    '''
-    hash = auth_data.pop('hash', None)
-    try:
-        auth_date = int(auth_data.get('auth_date', 0))
-        # Sorry, you are too late
-        if time.mktime(datetime.utcnow().timetuple()) - auth_date > 86400:
-            return False
-    except Exception:
-        return False
-
-    kvs = sorted(['{}={}'.format(k, v) for k, v in auth_data.items()])
-    mac = hmac.new(
-        app.config['TELEGRAM_AUTH_SECRET'],
-        bytes('\n'.join(kvs), 'utf-8'),
-        'SHA256',
-    )
-    return mac.hexdigest() == hash
-
-
-def generate_sendkey():
-    return ''.join(
-        random.SystemRandom().choice(string.ascii_letters + string.digits)
-        for i in range(64)
-    )
-
-
 async def send_message(chat_id, text, reply_to, parsemode):
+    '''Send a text message to given Telegram chat'''
     bot.sendMessage(
         chat_id, text,
         parse_mode=parsemode, reply_to_message_id=reply_to,
@@ -60,7 +33,10 @@ async def send_message(chat_id, text, reply_to, parsemode):
 
 @app.before_serving
 async def create_db_pool():
-    print('Setting up db_pool')
+    print(app.config['DATABASE_FILE'])
+    import os
+    print(os.path.exists(os.path.dirname(app.config['DATABASE_FILE'])))
+    log(message_type='create_db_pool')
     db.bind(
         provider='sqlite',
         filename=app.config['DATABASE_FILE'],
@@ -72,14 +48,16 @@ async def create_db_pool():
 
 @app.after_serving
 async def close_db_pool():
+    log(message_type='enter close_db_pool')
     db_pool = g.get('db_pool')
     if db_pool:
-        print('Closing db_pool...')
+        log(message_type='close_db_pool')
         await g.db_pool.flush()
         await g.db_pool.disconnect()
 
 
 @app.route('/')
+@eliot_log
 async def index():
     '''Home page. Basically a static page with a login button.
     '''
@@ -87,6 +65,7 @@ async def index():
 
 
 @app.route('/login')
+@eliot_log
 async def login():
     '''Login. Telegram authentication redirects here.
     '''
@@ -105,6 +84,7 @@ async def login():
 
 
 @app.route('/logout')
+@eliot_log
 async def logout():
     '''Logout'''
     session.pop('tg_id', None)
@@ -112,6 +92,7 @@ async def logout():
 
 
 @app.route('/dashboard')
+@eliot_log
 async def view_dashboard():
     '''Dashboard. User can view / reset sendkey, or logout.
     '''
@@ -133,11 +114,14 @@ async def view_dashboard():
 
 
 @app.route(app.config['TELEGRAM_BOT_WEBHOOK_PATH'], methods=['POST'])
+@eliot_log
 async def webhook():
     '''API endpoing for Telegram webhook.
     Telegram sends update messages to this endpoint.
     '''
-    update = Update.de_json(await request.get_json(), bot)
+    data = await request.get_json()
+    print(data)
+    update = Update.de_json(data, bot)
     if not update:
         return 'No update', 400
 
@@ -155,6 +139,7 @@ async def webhook():
 
 
 @app.route('/send', methods=['POST', 'GET'])
+@eliot_log
 async def send():
     '''API endpoint for sending a message via Telegram'''
     form = await request.form
@@ -166,6 +151,7 @@ async def send():
         with db_session:
             user = User.get(key=sendkey)
             if not user:
+                log(message_type='warn', error='User not found', key=sendkey, text=text)
                 return 'No such user', 401
 
         asyncio.ensure_future(send_message(
