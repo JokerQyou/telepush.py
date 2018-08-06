@@ -13,3 +13,4 @@ def test_config_attrs():
     assert hasattr(Config, 'TELEGRAM_AUTH_SECRET')
     assert hasattr(Config, 'DEBUG')
     assert hasattr(Config, 'DATABASE_FILE')
+    assert hasattr(Config, 'LOG_FILE')
