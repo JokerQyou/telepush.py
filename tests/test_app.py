@@ -6,7 +6,6 @@ import os
 import shutil
 import tempfile
 import time
-from unittest import mock
 from urllib.parse import urlparse
 
 import pytest
@@ -25,6 +24,9 @@ def monkeysession(request):
     mpatch.setattr('telegram.Bot.set_webhook', lambda x, y: None)
     mpatch.setattr('telegram.Bot._validate_token', lambda x, y: True)
     mpatch.setattr('telegram.Bot.send_message', lambda *x, **y: None)
+
+    # We don't want to actually load `.env` file during testing
+    mpatch.setattr('dotenv.load_dotenv', lambda: None)
     yield mpatch
     mpatch.undo()
 
@@ -32,6 +34,8 @@ def monkeysession(request):
 @pytest.yield_fixture(scope='module')
 def event_loop(request):
     '''Async fixtures require an `event_loop` fixture.
+    This is mainly for `fake_app_config` fixture. It is an async function
+     because it need to call async functions on the `app` instance.
     Ref: https://github.com/pytest-dev/pytest-asyncio/issues/68
     '''
     loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -40,8 +44,6 @@ def event_loop(request):
 
 
 @pytest.fixture(scope='module', autouse=True)
-# We don't want to actually load `.env` file during testing
-@mock.patch('telepush.config.load_dotenv', new_callable=lambda: None)
 async def fake_app_config(request):
     '''Setup and teardown function for this test module.
     Basically setup test env vars and a temporary folder for storing data.
@@ -54,10 +56,11 @@ async def fake_app_config(request):
         TELEGRAM_BOT_USERNAME='test_bot_username',
         WEBSITE_URL='http://local.test',
         SECRET_KEY='test_secret',
-        QUART_DEBUG='1',
         DATABASE_FILE=os.path.join(tmpdir, 'telepush.db'),
         LOG_FILE=os.path.join(tmpdir, 'telepush.log'),
     ))
+    # Suppress DEBUG warning from Config object
+    os.environ.pop('QUART_DEBUG', None)
     global app
     from telepush.app import app
 
@@ -135,6 +138,23 @@ async def test_login_valid(client):
     assert 302 == response.status_code
     assert '/dashboard' == response.location
 
+    # Since we're logged in now, test /dashboard view here, too
+    response = await client.get(response.location)
+    body = await response.get_data()
+    assert 200 == response.status_code
+    assert b'Welcom, Bob' in body
+    assert bytes(
+        '<form action="{}/send"'.format(app.config['WEBSITE_URL']), 'utf-8',
+    ) in body
+
+
+@pytest.mark.asyncio
+async def test_dashboard_invalid(client):
+    '''Test visiting dashboard without logging in'''
+    response = await client.get('/dashboard')
+    assert 302 == response.status_code
+    assert '/' == response.location
+
 
 @pytest.mark.asyncio
 async def test_webhook_invalid(client):
@@ -171,11 +191,17 @@ async def test_webhook_valid(client):
                 'type': 'private',
             },
             'date': now,
-            'connected_website': bot_domain
+            'connected_website': bot_domain,
         },
     }
     response = await client.post(webhook_path, json=data)
     assert 200 == response.status_code
+
+    # Webhook updates without `connected_website` field are also valid,
+    # but they won't be processed
+    data['message'].pop('connected_website', None)
+    data['message']['text'] = 'test'
+    assert 200 == (await client.post(webhook_path, json=data)).status_code
 
 
 @pytest.mark.asyncio
